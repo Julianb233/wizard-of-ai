@@ -117,8 +117,6 @@ export function ApplySection() {
     setIsSubmitting(true)
     setErrorMessage("")
 
-    const webhookUrl = process.env.NEXT_PUBLIC_FORM_WEBHOOK_URL
-
     const payload = {
       selectedOption,
       optionTitle: options.find((o) => o.id === selectedOption)?.title,
@@ -129,28 +127,26 @@ export function ApplySection() {
     }
 
     try {
-      if (webhookUrl) {
-        const response = await fetch(webhookUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        })
+      // Use the API endpoint for form submission
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
 
-        if (!response.ok) {
-          throw new Error("Failed to submit form")
-        }
-      } else {
-        // No webhook configured - silently succeed for development
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || "Failed to submit form")
       }
 
       setSubmitStatus("success")
       setFormData({ name: "", email: "", phone: "", business: "", message: "" })
       setSelectedServicePath("optimize-operations")
-    } catch {
+    } catch (err) {
       setSubmitStatus("error")
-      setErrorMessage("Something went wrong. Please try again or email directly.")
+      setErrorMessage(err instanceof Error ? err.message : "Something went wrong. Please try again or email directly.")
     } finally {
       setIsSubmitting(false)
     }

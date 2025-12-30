@@ -118,10 +118,35 @@ export default function CommunityPage() {
   const { scrollYProgress } = useScroll()
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
   const [email, setEmail] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle email submission - webhook integration pending
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "community-signup",
+          name: "Community Member",
+          email,
+          message: "",
+          submittedAt: new Date().toISOString(),
+          source: "wizard-of-ai-community-page",
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to submit")
+      setSubmitStatus("success")
+      setEmail("")
+    } catch {
+      setSubmitStatus("error")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -526,27 +551,51 @@ export default function CommunityPage() {
                   Enter your email below to get exclusive access to our private community and start your AI transformation today.
                 </p>
 
-                <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto mb-6">
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    className="flex-1 px-6 py-4 bg-[#0A4D3C]/50 border border-[#D4A84B]/30 rounded-xl text-[#FDF8E8] placeholder-[#FDF8E8]/40 focus:outline-none focus:border-[#D4A84B] transition-all"
-                    required
-                  />
-                  <motion.button
-                    type="submit"
-                    className="px-8 py-4 bg-gradient-to-r from-[#D4A84B] to-[#E8C55A] text-[#0A4D3C] font-bold rounded-xl transition-all duration-300 shadow-xl whitespace-nowrap"
-                    whileHover={{
-                      scale: 1.05,
-                      boxShadow: "0 0 40px rgba(212,168,75,0.6)",
-                    }}
-                    whileTap={{ scale: 0.98 }}
+                {submitStatus === "success" ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-[#D4A84B]/20 border border-[#D4A84B] rounded-xl p-6 max-w-lg mx-auto mb-6"
                   >
-                    Join Now
-                  </motion.button>
-                </form>
+                    <div className="flex items-center justify-center gap-3 text-[#D4A84B]">
+                      <CheckCircle className="w-6 h-6" />
+                      <span className="font-bold">Welcome to the community! Check your email.</span>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto mb-6">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      className="flex-1 px-6 py-4 bg-[#0A4D3C]/50 border border-[#D4A84B]/30 rounded-xl text-[#FDF8E8] placeholder-[#FDF8E8]/40 focus:outline-none focus:border-[#D4A84B] transition-all disabled:opacity-50"
+                      required
+                      disabled={isSubmitting}
+                    />
+                    <motion.button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="px-8 py-4 bg-gradient-to-r from-[#D4A84B] to-[#E8C55A] text-[#0A4D3C] font-bold rounded-xl transition-all duration-300 shadow-xl whitespace-nowrap disabled:opacity-70 disabled:cursor-not-allowed"
+                      whileHover={!isSubmitting ? {
+                        scale: 1.05,
+                        boxShadow: "0 0 40px rgba(212,168,75,0.6)",
+                      } : {}}
+                      whileTap={!isSubmitting ? { scale: 0.98 } : {}}
+                    >
+                      {isSubmitting ? "Joining..." : "Join Now"}
+                    </motion.button>
+                  </form>
+                )}
+                {submitStatus === "error" && (
+                  <motion.p
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-red-400 text-sm text-center mb-4"
+                  >
+                    Something went wrong. Please try again.
+                  </motion.p>
+                )}
 
                 <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-[#FDF8E8]/60">
                   {[
