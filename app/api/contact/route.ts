@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createServerClient, isSupabaseConfigured, type ContactSubmission } from "@/lib/supabase"
 
 // Contact Form API Route
-// Supports: Webhook integration, Resend email, and n8n automation
+// Supports: Supabase database, Webhook integration, Resend email, and n8n automation
 
 interface ContactFormData {
   selectedOption: string
@@ -152,6 +153,44 @@ Source: ${data.source}
   }
 }
 
+// Save to Supabase database
+async function saveToSupabase(data: ContactFormData): Promise<boolean> {
+  if (!isSupabaseConfigured()) return false
+
+  try {
+    const supabase = createServerClient()
+    if (!supabase) return false
+
+    const submission: ContactSubmission = {
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      business: data.business,
+      message: data.message,
+      selected_option: data.selectedOption,
+      option_title: data.optionTitle,
+      service_path: data.selectedServicePath,
+      source: data.source || 'website',
+      type: data.type,
+      offer: data.offer,
+    }
+
+    const { error } = await supabase
+      .from('contact_submissions')
+      .insert(submission)
+
+    if (error) {
+      console.error("Supabase insert error:", error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error("Supabase error:", error)
+    return false
+  }
+}
+
 // Send auto-reply to user
 async function sendAutoReply(data: ContactFormData): Promise<boolean> {
   const resendApiKey = process.env.RESEND_API_KEY
@@ -260,6 +299,7 @@ export async function POST(request: NextRequest) {
 
     // Track which integrations succeeded
     const results = {
+      supabase: false,
       webhook: false,
       n8n: false,
       email: false,
@@ -267,23 +307,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Send to all configured integrations in parallel
-    const [webhookResult, n8nResult, emailResult, autoReplyResult] = await Promise.allSettled([
+    const [supabaseResult, webhookResult, n8nResult, emailResult, autoReplyResult] = await Promise.allSettled([
+      saveToSupabase(data),
       sendToWebhook(data),
       sendToN8NWebhook(data),
       sendEmailNotification(data),
       sendAutoReply(data),
     ])
 
+    results.supabase = supabaseResult.status === "fulfilled" && supabaseResult.value
     results.webhook = webhookResult.status === "fulfilled" && webhookResult.value
     results.n8n = n8nResult.status === "fulfilled" && n8nResult.value
     results.email = emailResult.status === "fulfilled" && emailResult.value
     results.autoReply = autoReplyResult.status === "fulfilled" && autoReplyResult.value
 
-    // Check if at least one integration succeeded
-    const anySuccess = results.webhook || results.n8n || results.email
+    // Check if at least one integration succeeded (Supabase counts as success)
+    const anySuccess = results.supabase || results.webhook || results.n8n || results.email
 
     // In development without any integrations configured, still succeed
     const hasAnyIntegration =
+      isSupabaseConfigured() ||
       process.env.NEXT_PUBLIC_FORM_WEBHOOK_URL ||
       process.env.FORM_WEBHOOK_URL ||
       process.env.N8N_WEBHOOK_URL ||
