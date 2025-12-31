@@ -4,8 +4,9 @@ import { useState } from "react"
 import { motion } from "framer-motion"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
-import { ArrowLeft, Lock, Sparkles, KeyRound } from "lucide-react"
+import { ArrowLeft, Lock, Sparkles, KeyRound, AlertCircle, CheckCircle } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 const GOLDEN_TICKET_URL = "/images/d344cd36-7178-4ad5-8fb1.jpeg"
 
@@ -32,18 +33,53 @@ const getSparkleSize = (size: string) => {
 }
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+  const [isSignUp, setIsSignUp] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
-    // Placeholder for authentication logic
-    setTimeout(() => {
+    setError(null)
+    setSuccess(null)
+
+    try {
+      const endpoint = isSignUp ? '/api/auth/signup' : '/api/auth/login'
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error || 'Authentication failed')
+        return
+      }
+
+      if (data.requiresConfirmation) {
+        setSuccess('Check your email to confirm your account!')
+        return
+      }
+
+      if (data.redirectTo) {
+        setSuccess('Login successful! Redirecting...')
+        setTimeout(() => {
+          router.push(data.redirectTo)
+        }, 1000)
+      }
+    } catch (err) {
+      setError('Connection error. Please try again.')
+    } finally {
       setIsSubmitting(false)
-      alert("Login functionality coming soon! Golden Ticket Holders will have exclusive access to premium AI resources.")
-    }, 1500)
+    }
   }
 
   return (
@@ -167,7 +203,7 @@ export default function LoginPage() {
                 <span className="text-[#D4A84B]">Holders</span>
               </motion.h1>
               <p className="text-[#F0D98C]/80">
-                Access your exclusive AI resources and community
+                {isSignUp ? 'Create your account to join' : 'Access your exclusive AI resources and community'}
               </p>
             </div>
 
@@ -176,6 +212,30 @@ export default function LoginPage() {
               className="bg-[#0D6B4F]/30 rounded-2xl p-8 border border-[#D4A84B]/20"
               whileHover={{ boxShadow: "0 0 30px rgba(212,168,75,0.15)" }}
             >
+              {/* Error Message */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-5 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3"
+                >
+                  <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                  <span className="text-red-300 text-sm">{error}</span>
+                </motion.div>
+              )}
+
+              {/* Success Message */}
+              {success && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-5 p-4 bg-green-500/10 border border-green-500/30 rounded-xl flex items-center gap-3"
+                >
+                  <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                  <span className="text-green-300 text-sm">{success}</span>
+                </motion.div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label className="block text-[#FDF8E8]/70 text-sm mb-2 font-medium">Email Address</label>
@@ -197,21 +257,24 @@ export default function LoginPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       className="w-full px-4 py-3 bg-[#0A4D3C]/50 border border-[#D4A84B]/20 rounded-xl text-[#FDF8E8] placeholder-[#FDF8E8]/30 focus:border-[#D4A84B] focus:outline-none transition-colors pr-12"
-                      placeholder="Enter your password"
+                      placeholder={isSignUp ? "Create a password (min 6 chars)" : "Enter your password"}
                       required
+                      minLength={isSignUp ? 6 : undefined}
                       disabled={isSubmitting}
                     />
                     <Lock className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#D4A84B]/50" />
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 rounded border-[#D4A84B]/30 bg-[#0A4D3C] text-[#D4A84B] focus:ring-[#D4A84B]" />
-                    <span className="text-[#FDF8E8]/60">Remember me</span>
-                  </label>
-                  <a href="#" className="text-[#D4A84B] hover:text-[#E8C55A] transition-colors">Forgot password?</a>
-                </div>
+                {!isSignUp && (
+                  <div className="flex items-center justify-between text-sm">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 rounded border-[#D4A84B]/30 bg-[#0A4D3C] text-[#D4A84B] focus:ring-[#D4A84B]" />
+                      <span className="text-[#FDF8E8]/60">Remember me</span>
+                    </label>
+                    <a href="#" className="text-[#D4A84B] hover:text-[#E8C55A] transition-colors">Forgot password?</a>
+                  </div>
+                )}
 
                 <motion.button
                   type="submit"
@@ -226,12 +289,12 @@ export default function LoginPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                       </svg>
-                      Unlocking...
+                      {isSignUp ? 'Creating Account...' : 'Unlocking...'}
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5" />
-                      Access Portal
+                      {isSignUp ? 'Create Account' : 'Access Portal'}
                     </>
                   )}
                 </motion.button>
@@ -239,10 +302,35 @@ export default function LoginPage() {
 
               <div className="mt-6 text-center">
                 <p className="text-[#FDF8E8]/50 text-sm">
-                  Don't have a Golden Ticket?{" "}
-                  <Link href="/#apply" className="text-[#D4A84B] hover:text-[#E8C55A] font-medium transition-colors">
-                    Book a Consultation
-                  </Link>
+                  {isSignUp ? (
+                    <>
+                      Already have an account?{" "}
+                      <button
+                        onClick={() => {
+                          setIsSignUp(false)
+                          setError(null)
+                          setSuccess(null)
+                        }}
+                        className="text-[#D4A84B] hover:text-[#E8C55A] font-medium transition-colors"
+                      >
+                        Sign In
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      Don't have an account?{" "}
+                      <button
+                        onClick={() => {
+                          setIsSignUp(true)
+                          setError(null)
+                          setSuccess(null)
+                        }}
+                        className="text-[#D4A84B] hover:text-[#E8C55A] font-medium transition-colors"
+                      >
+                        Sign Up
+                      </button>
+                    </>
+                  )}
                 </p>
               </div>
             </motion.div>

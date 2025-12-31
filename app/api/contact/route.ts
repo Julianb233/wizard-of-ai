@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createServerClient, isSupabaseConfigured, type ContactSubmission } from "@/lib/supabase"
+import { isNeonConfigured, saveContactToNeon, type ContactSubmission } from "@/lib/neon"
 
 // Contact Form API Route
-// Supports: Supabase database, Webhook integration, Resend email, and n8n automation
+// Supports: Neon database, Webhook integration, Resend email, and n8n automation
 
 interface ContactFormData {
   selectedOption: string
@@ -153,14 +153,11 @@ Source: ${data.source}
   }
 }
 
-// Save to Supabase database
-async function saveToSupabase(data: ContactFormData): Promise<boolean> {
-  if (!isSupabaseConfigured()) return false
+// Save to Neon database
+async function saveToDatabase(data: ContactFormData): Promise<boolean> {
+  if (!isNeonConfigured()) return false
 
   try {
-    const supabase = createServerClient()
-    if (!supabase) return false
-
     const submission: ContactSubmission = {
       name: data.name,
       email: data.email,
@@ -175,18 +172,9 @@ async function saveToSupabase(data: ContactFormData): Promise<boolean> {
       offer: data.offer,
     }
 
-    const { error } = await supabase
-      .from('contact_submissions')
-      .insert(submission)
-
-    if (error) {
-      console.error("Supabase insert error:", error)
-      return false
-    }
-
-    return true
+    return await saveContactToNeon(submission)
   } catch (error) {
-    console.error("Supabase error:", error)
+    console.error("Database error:", error)
     return false
   }
 }
@@ -299,7 +287,7 @@ export async function POST(request: NextRequest) {
 
     // Track which integrations succeeded
     const results = {
-      supabase: false,
+      database: false,
       webhook: false,
       n8n: false,
       email: false,
@@ -307,26 +295,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Send to all configured integrations in parallel
-    const [supabaseResult, webhookResult, n8nResult, emailResult, autoReplyResult] = await Promise.allSettled([
-      saveToSupabase(data),
+    const [databaseResult, webhookResult, n8nResult, emailResult, autoReplyResult] = await Promise.allSettled([
+      saveToDatabase(data),
       sendToWebhook(data),
       sendToN8NWebhook(data),
       sendEmailNotification(data),
       sendAutoReply(data),
     ])
 
-    results.supabase = supabaseResult.status === "fulfilled" && supabaseResult.value
+    results.database = databaseResult.status === "fulfilled" && databaseResult.value
     results.webhook = webhookResult.status === "fulfilled" && webhookResult.value
     results.n8n = n8nResult.status === "fulfilled" && n8nResult.value
     results.email = emailResult.status === "fulfilled" && emailResult.value
     results.autoReply = autoReplyResult.status === "fulfilled" && autoReplyResult.value
 
-    // Check if at least one integration succeeded (Supabase counts as success)
-    const anySuccess = results.supabase || results.webhook || results.n8n || results.email
+    // Check if at least one integration succeeded (database counts as success)
+    const anySuccess = results.database || results.webhook || results.n8n || results.email
 
     // In development without any integrations configured, still succeed
     const hasAnyIntegration =
-      isSupabaseConfigured() ||
+      isNeonConfigured() ||
       process.env.NEXT_PUBLIC_FORM_WEBHOOK_URL ||
       process.env.FORM_WEBHOOK_URL ||
       process.env.N8N_WEBHOOK_URL ||
