@@ -35,7 +35,7 @@ const oswald = Oswald({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://thewizardofai.com"),
+  metadataBase: new URL("https://thewizardof.ai"),
   title: "The Wizard of AI - Julian Bradley | AI Consulting & Business Automation",
   description:
     "Transform your business with AI consulting and automation solutions. Julian Bradley helps business owners, executives, and content creators harness AI to scale operations, automate workflows, and multiply opportunities. Expert in AI agents, BottleneckBots & Exactech AI.",
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "The Wizard of AI - Julian Bradley | AI Consulting & Business Automation",
     description: "Your Golden Ticket to AI Transformation. Automate workflows, multiply opportunities, and save time with AI solutions from expert consultant Julian Bradley.",
-    url: "https://thewizardofai.com",
+    url: "https://thewizardof.ai",
     siteName: "The Wizard of AI",
     images: [
       {
@@ -102,9 +102,9 @@ export default function RootLayout({
     "@type": "ProfessionalService",
     "name": "The Wizard of AI - Julian Bradley",
     "description": "AI consulting and business automation solutions helping businesses transform operations, automate workflows, and scale with AI agents.",
-    "url": "https://thewizardofai.com",
-    "logo": "https://thewizardofai.com/images/og-wizard-of-ai.webp",
-    "image": "https://thewizardofai.com/images/og-wizard-of-ai.webp",
+    "url": "https://thewizardof.ai",
+    "logo": "https://thewizardof.ai/images/og-wizard-of-ai.webp",
+    "image": "https://thewizardof.ai/images/og-wizard-of-ai.webp",
     "provider": {
       "@type": "Person",
       "name": "Julian Bradley",
